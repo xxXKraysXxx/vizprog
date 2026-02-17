@@ -1,3 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.trimAndTransform = exports.capitalizeFirst = void 0;
+exports.createUser = createUser;
+exports.createBook = createBook;
+exports.calculateArea = calculateArea;
+exports.getStatusColor = getStatusColor;
+exports.getFirstElement = getFirstElement;
+exports.findById = findById;
 function createUser(id, name, email, isActive) {
     if (isActive === void 0) { isActive = true; }
     return {
@@ -54,14 +63,16 @@ var capitalizeFirst = function (str, uppercase) {
         return str;
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
+exports.capitalizeFirst = capitalizeFirst;
 var trimAndTransform = function (str, uppercase) {
     if (uppercase === void 0) { uppercase = false; }
     var trimmed = str.trim();
     return uppercase ? trimmed.toUpperCase() : trimmed;
 };
-console.log(capitalizeFirst("hello world"));
-console.log(trimAndTransform("  hello  "));
-console.log(trimAndTransform("  world  ", true));
+exports.trimAndTransform = trimAndTransform;
+console.log((0, exports.capitalizeFirst)("hello world"));
+console.log((0, exports.trimAndTransform)("  hello  "));
+console.log((0, exports.trimAndTransform)("  world  ", true));
 function getFirstElement(arr) {
     return arr.length > 0 ? arr[0] : undefined;
 }
