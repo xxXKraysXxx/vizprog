@@ -12,7 +12,7 @@ export function csvToJSON(input: string[], delimiter: string): object[] {
 
     const headers = input[0]!.split(delimiter).map(header => header.trim());
     
-    if (headers.length === 0) {
+    if (headers.length === 0 || headers[0] === '') {
         throw new Error('No headers found');
     }
 

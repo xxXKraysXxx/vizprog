@@ -110,6 +110,16 @@ describe('csvToJSON', () => {
         
         expect(result).toEqual([{ name: 'John', age: '25' }]);
     });
+
+    it('should handle non-Error objects being thrown', async () => {
+    vi.mocked(readFile).mockRejectedValue('Something went wrong');
+    
+    await expect(formatCSVFileToJSONFile('input.csv', 'output.json', ';'))
+        .rejects.toBe('Something went wrong');
+    
+    expect(writeFile).not.toHaveBeenCalled();
+});
+
 });
 
 describe('formatCSVFileToJSONFile', () => {
