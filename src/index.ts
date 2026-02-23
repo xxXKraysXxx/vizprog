@@ -11,7 +11,7 @@ export function createUser(id: number, name: string, email?: string, isActive: b
         name,
         email,
         isActive
-    };
+    } as User;
 }
 
 const user1 = createUser(1, "Иван Петров");
@@ -110,7 +110,7 @@ export interface HasId {
 
 export function findById<T extends HasId>(items: T[], id: number): T | undefined {
     for (let i = 0; i < items.length; i++) {
-        if (items[i].id === id) {
+        if (items[i]!.id === id) {
             return items[i];
         }
     }
