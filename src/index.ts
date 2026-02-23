@@ -1,3 +1,4 @@
+import { csvToJSON, formatCSVFileToJSONFile } from "./csv-to-json";  
 export interface User {
     id: number;
     name: string;
@@ -129,3 +130,13 @@ const people: Person[] = [
 
 console.log(findById(people, 2)); 
 console.log(findById(people, 5)); 
+
+console.log('\n'+ "=".repeat(20) + 'lab2' + "=".repeat(20) +'\n');
+
+console.log('csvToJSON:');
+const result = csvToJSON(['name;age', 'John;25', 'Jane;30'], ';');
+console.log(result);
+
+console.log('formatCSVFileToJSONFile:');
+formatCSVFileToJSONFile('input.csv', 'output.json', ';');
+console.log('Wrote output.json file');
