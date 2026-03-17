@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
+    "lab4": "tsx src/query.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage"
