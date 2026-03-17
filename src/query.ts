@@ -1,119 +1,144 @@
+export type Transform<T, R = T[]> = (data: T[]) => R;
 
-export type Transform<T, R = T> = (data: T[]) => R[];
+export interface QueryStage { readonly stage: string }
+export interface WhereStage extends QueryStage { readonly stage: 'where' }
+export interface GroupByStage extends QueryStage { readonly stage: 'groupBy' }
+export interface HavingStage extends QueryStage { readonly stage: 'having' }
+export interface SortStage extends QueryStage { readonly stage: 'sort' }
 
-export type Where<T> = <K extends keyof T>(key: K, value: T[K]) => Transform<T>;
+export type Where<T> = <K extends keyof T>(key: K, value: T[K]) => Transform<T> & WhereStage;
+export type Sort<T> = <K extends keyof T>(key: K) => Transform<T> & SortStage;
 
-export type Sort<T> = <K extends keyof T>(key: K) => Transform<T>;
+export type Group<T, K extends keyof T> = { key: T[K]; items: T[] };
+export type GroupBy<T> = <K extends keyof T>(key: K) => Transform<T, Group<T, K>[]> & GroupByStage;
+export type Having<T, K extends keyof T = any> =
+  (predicate: (group: Group<T, K>) => boolean) =>
+    Transform<Group<T, K>, Group<T, K>[]> & HavingStage;
 
-export type Group<T, K extends keyof T> = {
-    key: T[K];
-    items: T[];
-};
+export type ValidateOrder<T extends any[]> =
+  T extends [] ? { valid: true } :
+  T extends [infer F, ...infer R] ?
+    F extends WhereStage ? ValidateWhere<R> :
+    F extends GroupByStage ? ValidateGroupBy<R> :
+    F extends HavingStage ? { valid: false } :
+    F extends SortStage ? ValidateSort<R> :
+    { valid: false } :
+  { valid: true };
 
-export type GroupBy<T> = <K extends keyof T>(key: K) => Transform<T, Group<T, K>>;
+export type ValidateWhere<R extends any[]> =
+  R extends [] ? { valid: true } :
+  R extends [infer N, ...infer T] ?
+    N extends WhereStage ? ValidateWhere<T> :
+    N extends GroupByStage ? ValidateGroupBy<T> :
+    N extends HavingStage ? { valid: false } :
+    N extends SortStage ? ValidateSort<T> :
+    { valid: false } :
+  { valid: true };
 
-export type GroupTransform<T, K extends keyof T> = Transform<Group<T, K>, Group<T, K>>;
+export type ValidateGroupBy<R extends any[]> =
+  R extends [] ? { valid: true } :
+  R extends [infer N, ...infer T] ?
+    N extends GroupByStage ? ValidateGroupBy<T> :
+    N extends HavingStage ? ValidateHaving<T> :
+    N extends SortStage ? ValidateSort<T> :
+    { valid: false } :
+  { valid: true };
 
-export type Having = {
-    <T, K extends keyof T>(predicate: (group: Group<T, K>) => boolean): GroupTransform<T, K>;
-};
+export type ValidateHaving<R extends any[]> =
+  R extends [] ? { valid: true } :
+  R extends [infer N, ...infer T] ?
+    N extends HavingStage ? ValidateHaving<T> :
+    N extends SortStage ? ValidateSort<T> :
+    { valid: false } :
+  { valid: true };
 
-export function query<T, R = T>(...steps: Array<Transform<any, any>>): Transform<T, R> {
-    return (data: T[]): R[] => {
-        let result: any = data;
-        
-        for (const step of steps) {
-            result = step(result);
-        }
-        
-        return result as R[];
-    };
+export type ValidateSort<R extends any[]> =
+  R extends [] ? { valid: true } :
+  R extends [infer N, ...infer T] ?
+    N extends SortStage ? ValidateSort<T> :
+    { valid: false } :
+  { valid: true };
+
+type Last<T extends any[]> = T extends [...any[], infer L] ? L : never;
+
+export function query<
+  Steps extends Array<((data: any) => any) & QueryStage>
+>(
+  ...steps: Steps
+): ValidateOrder<Steps> extends { valid: true }
+  ? (data: Parameters<Steps[0]>[0]) => ReturnType<Last<Steps>>
+  : never {
+
+  return ((data: any[]) => {
+    let r: any = data;
+    for (const s of steps) r = s(r);
+    return r;
+  }) as any;
 }
 
-export const where: Where<any> = <T, K extends keyof T>(key: K, value: T[K]): Transform<T> => {
-    return (data: T[]): T[] => {
-        return data.filter(item => item[key] === value);
-    };
-};
+export function where<T>(): Where<T> {
+  return <K extends keyof T>(key: K, value: T[K]) =>
+    Object.assign((d: T[]) => d.filter(x => x[key] === value), { stage: 'where' as const });
+}
 
-export const sort: Sort<any> = <T, K extends keyof T>(key: K): Transform<T> => {
-    return (data: T[]): T[] => {
-        return [...data].sort((a, b) => {
-            const av = a[key];
-            const bv = b[key];
-            
-            if (av < bv) return -1;
-            if (av > bv) return 1;
-            return 0;
-        });
-    };
-};
+export function sort<T>(): Sort<T> {
+  return <K extends keyof T>(key: K) =>
+    Object.assign((d: T[]) => [...d].sort((a, b) =>
+      a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0
+    ), { stage: 'sort' as const });
+}
 
-export const groupBy: GroupBy<any> =
-  <T, K extends keyof T>(key: K): Transform<T, Group<T, K>> => {
-    return (data: T[]): Group<T, K>[] => {
-        const groups = new Map<string, Group<T, K>>();
-        for (const item of data) {
-            const mapKey = String(item[key]); 
-            let group = groups.get(mapKey);
-            if (!group) {
-                group = {
-                    key: item[key], 
-                    items: []
-                };
-                groups.set(mapKey, group);
-            }
-            group.items.push(item);
-        }
-        return Array.from(groups.values());
-    };
-};
+export function groupBy<T>(): GroupBy<T> {
+  return <K extends keyof T>(key: K) =>
+    Object.assign((d: T[]) => {
+      const m = new Map<T[K], Group<T, K>>();
+      for (const x of d) {
+        if (!m.has(x[key])) m.set(x[key], { key: x[key], items: [] });
+        m.get(x[key])!.items.push(x);
+      }
+      return [...m.values()];
+    }, { stage: 'groupBy' as const });
+}
 
-export const having: Having = <T, K extends keyof T>(
-    predicate: (group: Group<T, K>) => boolean
-): GroupTransform<T, K> => {
-    return (groups: Group<T, K>[]): Group<T, K>[] => {
-        return groups.filter(predicate);
-    };
-};
+export function having<T, K extends keyof T>(): Having<T, K> {
+  return pred =>
+    Object.assign((g: Group<T, K>[]) => g.filter(pred), { stage: 'having' as const });
+}
 
 type User = {
-    id: number;
-    name: string;
-    surname: string;
-    age: number;
-    city: string;
+  id: number;
+  name: string;
+  surname: string;
+  age: number;
+  city: string;
 };
 
 const users: User[] = [
-    { id: 1, name: "John", surname: "Doe", age: 34, city: "NY" },
-    { id: 2, name: "John", surname: "Doe", age: 33, city: "NY" },
-    { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
-    { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" },
+  { id: 1, name: "John", surname: "Doe", age: 34, city: "NY" },
+  { id: 2, name: "John", surname: "Doe", age: 33, city: "NY" },
+  { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
+  { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" },
 ];
 
-const search = query<User>(
-    where("name", "John"),
-    where("surname", "Doe"),
-    sort("age")
+const search = query(
+  where<User>()("name", "John"),
+  where<User>()("surname", "Doe"),
+  sort<User>()("age")
 );
 
-const result1 = search(users);
-console.log("Фильтрация и сортировка:", result1);
+console.log("Фильтрация и сортировка:", search(users));
 
-const groupAndFilter = query<User, Group<User, 'city'>>(
-    groupBy("city"),
-    having<User, 'city'>((group) => group.items.length > 1) 
+const groupAndFilter = query(
+  groupBy<User>()("city"),
+  having<User, 'city'>()(g => g.items.length > 1)
 );
-const result2 = groupAndFilter(users);
-console.log("Группировка и фильтр по группам:");
-console.dir(result2, { depth: null });
 
-const pipeline = query<User, Group<User, 'city'>>(
-    where("surname", "Doe"),
-    groupBy("city"),
-    having<User, 'city'>((group) => group.items.some((u) => u.age > 34)) 
+console.log("Группировка и фильтр:", groupAndFilter(users));
+
+const pipeline = query(
+  where<User>()("surname", "Doe"),
+  groupBy<User>()("city"),
+  having<User, 'city'>()(g => g.items.some(u => u.age > 34))
 );
-const result3 = pipeline(users);
-console.log("Комбинированный конвейер:");
-console.dir(result3, { depth: null });
+
+console.log("Комбинированный конвейер:", pipeline(users));

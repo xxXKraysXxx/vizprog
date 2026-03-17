@@ -13,15 +13,15 @@ const users: User[] = [
     { id: 1, name: "John", surname: "Doe", age: 34, city: "NY" },
     { id: 2, name: "John", surname: "Doe", age: 33, city: "NY" },
     { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
-    { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" },
+    { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" }
 ];
 
 describe('query: where + sort', () => {
     it('filters by name and surname and sorts by age', () => {
-        const search = query<User>(
-            where("name", "John"),
-            where("surname", "Doe"),
-            sort("age"),
+        const search = query(
+            where<User>()("name", "John"),
+            where<User>()("surname", "Doe"),
+            sort<User>()("age")
         );
 
         const result = search(users);
@@ -29,16 +29,16 @@ describe('query: where + sort', () => {
         expect(result).toEqual([
             { id: 2, name: "John", surname: "Doe", age: 33, city: "NY" },
             { id: 1, name: "John", surname: "Doe", age: 34, city: "NY" },
-            { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
+            { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" }
         ]);
     });
 });
 
 describe('query: groupBy + having', () => {
     it('groups by city and keeps only groups with more than 1 item', () => {
-        const groupAndFilter = query<User, Group<User, 'city'>>(
-            groupBy("city"),
-            having<User, 'city'>((group) => group.items.length > 1),
+        const groupAndFilter = query(
+            groupBy<User>()("city"),
+            having<User, 'city'>()(group => group.items.length > 1)
         );
 
         const result = groupAndFilter(users);
@@ -52,20 +52,18 @@ describe('query: groupBy + having', () => {
 
 describe('query: combined pipeline', () => {
     it('filters by surname, groups by city and keeps groups with age > 34', () => {
-        const pipeline = query<User, Group<User, 'city'>>(
-            where("surname", "Doe"),
-            groupBy("city"),
-            having<User, 'city'>((group) => group.items.some((u) => u.age > 34)),
+        const pipeline = query(
+            where<User>()("surname", "Doe"),
+            groupBy<User>()("city"),
+            having<User, 'city'>()(group => group.items.some(u => u.age > 34))
         );
 
         const result = pipeline(users);
-        expect(result).toHaveLength(1);
 
+        expect(result).toHaveLength(1);
         const first = result[0];
-        expect(first).toBeDefined();
         expect(first!.key).toBe("LA");
         expect(first!.items.some(u => u.age > 34)).toBe(true);
-
     });
 });
 
@@ -74,18 +72,17 @@ describe('sort stability', () => {
         const data = [
             { n: 5, id: 1 },
             { n: 5, id: 2 },
-            { n: 5, id: 3 },
+            { n: 5, id: 3 }
         ];
 
         const sorted = query(
-            sort("n")
+            sort<typeof data[0]>()("n")
         )(data);
 
         expect(sorted).toEqual([
             { n: 5, id: 1 },
             { n: 5, id: 2 },
-            { n: 5, id: 3 },
+            { n: 5, id: 3 }
         ]);
     });
 });
-
