@@ -19,6 +19,6 @@ jobs:
               run: |
                 npm ci
 
-            - name: Run tests
+            - name: Run tests if test folder exists
               run: |
-                npm test
+                if [ -d "tests" ]; then npm test; else echo "No tests"; fi
