@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { query, where, sort, groupBy, having, type Group } from './query';
+import { describe, it, expect, expectTypeOf } from 'vitest';
+import { query, where, sort, groupBy, having, type Group, DeepReadonly, PickedByType, EventHandlers } from './query';
 
 type User = {
     id: number;
@@ -86,3 +86,67 @@ describe('sort stability', () => {
         ]);
     });
 });
+
+
+
+
+type Obj = {
+  a: number;
+  b: { c: string; d: { e: boolean } };
+  f: Array<{ g: number }>;
+};
+
+type R = DeepReadonly<Obj>;
+
+expectTypeOf<R['a']>().toEqualTypeOf<number>();
+expectTypeOf<R['b']>().toEqualTypeOf<{
+  readonly c: string;
+  readonly d: { readonly e: boolean };
+}>();
+expectTypeOf<R['f']>().toEqualTypeOf<
+  readonly { readonly g: number }[]
+>();
+
+
+type User2 = {
+  id: number;
+  name: string;
+  active: boolean;
+  age: number;
+};
+
+type OnlyNumbers = PickedByType<User2, number>;
+
+expectTypeOf<OnlyNumbers>().toEqualTypeOf<{
+  id: number;
+  age: number;
+}>();
+
+type OnlyBooleans = PickedByType<User2, boolean>;
+
+expectTypeOf<OnlyBooleans>().toEqualTypeOf<{
+  active: boolean;
+}>();
+
+
+type Events = {
+  click: MouseEvent;
+  change: InputEvent;
+  submit: SubmitEvent;
+};
+
+type Handlers = EventHandlers<Events>;
+
+expectTypeOf<Handlers['onClick']>().toEqualTypeOf<(e: MouseEvent) => void>();
+expectTypeOf<Handlers['onChange']>().toEqualTypeOf<(e: InputEvent) => void>();
+expectTypeOf<Handlers['onSubmit']>().toEqualTypeOf<(e: SubmitEvent) => void>();
+
+describe("runtime example in query.ts", () => {
+  it("executes example handlers", async () => {
+    const mod = await import('./query.js');
+    expect(mod).toBeDefined();
+  });
+});
+
+
+

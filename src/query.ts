@@ -130,7 +130,7 @@ console.log("Фильтрация и сортировка:", search(users));
 
 const groupAndFilter = query(
   groupBy<User>()("city"),
-  having<User, 'city'>()(g => g.items.length > 1)
+  having<User, 'city'>()(g => g.items.length > 1),
 );
 
 console.log("Группировка и фильтр:", groupAndFilter(users));
@@ -142,3 +142,58 @@ const pipeline = query(
 );
 
 console.log("Комбинированный конвейер:", pipeline(users));
+
+
+export type DeepReadonly<T> =
+  T extends (...args: any[]) => any
+    ? T
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T;
+
+type Example = {
+  a: number;
+  b: { c: string; d: { e: boolean } };
+  f: Array<{ g: number }>;
+};
+
+const deepReadonlyValue: DeepReadonly<Example> = {
+  a: 1,
+  b: { c: "bruh", d: { e: true } },
+  f: [{ g: 10 }]
+};
+
+console.log("DeepReadonly:", deepReadonlyValue);
+
+
+export type PickedByType<T, U> = {
+  [K in keyof T as T[K] extends U ? K : never]: T[K];
+};
+
+
+type OnlyNumbers = PickedByType<User, number>;
+
+const onlyNumbersValue: OnlyNumbers = {
+  id: 1,
+  age: 30
+};
+
+console.log("PickedByType<number>:", onlyNumbersValue);
+
+
+export type EventHandlers<T> = {
+  [K in keyof T as `on${Capitalize<string & K>}`]:
+    (event: T[K]) => void;
+};
+
+type Events = {
+  click: MouseEvent;
+  change: InputEvent;
+};
+
+const handlers: EventHandlers<Events> = {
+  onClick: e => console.log("click event:", e),
+  onChange: e => console.log("change event:", e)
+};
+
+console.log("EventHandlers keys:", Object.keys(handlers));
